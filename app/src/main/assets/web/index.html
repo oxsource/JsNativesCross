@@ -1,0 +1,37 @@
+<html>
+    <head>
+        <title>JSChannel SDK</title>
+        <meta charset="UTF-8"/>
+        <script src="../js/natives.js"></script>
+    </head>
+    <body>
+        <p>This is a test page.</p>
+        <p id="console"></p>
+        <button onclick="showToast()">显示Toast</button>
+        <button onclick="printLog()">打印日志</button>
+    </body>
+    <script type='text/javascript'>
+        const natives = window._natives;
+        const Print = {
+            consoleInJs: function(payload){
+                const {count, msg} = payload
+                document.getElementById('console').innerText = `${msg}: ${count}`;
+                return natives.success(data = {code: count + 1, who: 'consoleInJs@Print'});
+            }
+        }
+        natives.require(['Alert', 'Console']);
+        natives.on({Print});
+        //ready
+        natives.invoke("Console", "info", "js natives bridge is ready.");
+
+        function showToast(){
+            const result = natives.invoke("Alert", "toast", "Hello， This is from javascript.")
+            alert("弹出Toast成功:" + result.success);
+        }
+
+        function printLog(){
+            const result = natives.invoke("Console", "info", "web view call showToast");
+            alert("打印日志成功:" + result.success);
+        }
+    </script>
+</html>
