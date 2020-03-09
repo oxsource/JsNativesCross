@@ -1,2 +1,4 @@
 include ':app', ':natives'
 rootProject.name='JsNativesCross'
+include ':annotation'
+include ':compiler'
