@@ -9,6 +9,7 @@
         <p id="console"></p>
         <button onclick="showToast()">显示Toast</button>
         <button onclick="printLog()">打印日志</button>
+        <button onclick="saveFile()">保存文件</button>
     </body>
     <script type='text/javascript'>
         const natives = window._natives;
@@ -19,19 +20,26 @@
                 return natives.success(data = {code: count + 1, who: 'consoleInJs@Print'});
             }
         }
-        natives.require(['Alert', 'Console']);
         natives.on({Print});
         //ready
-        natives.invoke("Console", "info", "js natives bridge is ready.");
 
-        function showToast(){
-            const result = natives.invoke("Alert", "toast", "Hello， This is from javascript.")
-            alert("弹出Toast成功:" + result.success);
+        async function init(){await natives.invoke("Console/i", "js natives bridge is ready.");}
+        init()
+
+        async function showToast(){
+            await natives.invoke("Alert/showToast", "Hello， This is from javascript.")
+            alert("弹出Toast成功");
         }
 
-        function printLog(){
-            const result = natives.invoke("Console", "info", "web view call showToast");
-            alert("打印日志成功:" + result.success);
+        async function printLog(){
+            await natives.invoke("Console/i", "web view call showToast");
+            alert("打印日志成功");
+        }
+
+        async function saveFile(){
+            const payload = {path:'sdcard/download/jsb.demo', content:'this is from javascript.'}
+            const result = await natives.invoke("Files/saveFile", payload);
+            alert("保存文件成功:" + JSON.stringify(result));
         }
     </script>
 </html>

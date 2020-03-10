@@ -9,17 +9,16 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.Toast
-import org.json.JSONObject
-import pizzk.android.js.natives.JsNativeCross
 import pizzk.android.js.natives.JsInvoker
-import pizzk.android.js.natives.JsRequest
 import pizzk.android.process.jscross.impl.JSAlert
 import pizzk.android.process.jscross.impl.JSConsole
+import pizzk.android.process.jscross.impl.JSFiles
+import pizzk.android.process.jscross.impl.JsonParcelImpl
 
 class MainActivity : AppCompatActivity() {
     private lateinit var vWeb: WebView
     private lateinit var btCallJs: Button
-    private lateinit var jsNativeCross: JsNativeCross
+    private lateinit var jsInvoker: JsInvoker
     //
     private var count: Int = 0
     private val logger: RunTimeLogger by lazy { RunTimeLogger(name = "WebView") }
@@ -43,38 +42,34 @@ class MainActivity : AppCompatActivity() {
             }
         }
         //注册原生sdk功能模块
-        jsNativeCross = JsNativeCross(vWeb, ::applyHandles).open()
+        jsInvoker = JsInvoker(vWeb, JsonParcelImpl).open(::applyHandles)
         //加载index页面
         logger.start()
         vWeb.loadUrl("file:///android_asset/web/index.html")
     }
 
-    private fun applyHandles(requires: List<String>): List<JsInvoker.Hook> {
-        return requires.mapNotNull { name ->
-            return@mapNotNull when (name) {
-                JSAlert.NAME -> JSAlert(baseContext)
-                JSConsole.NAME -> JSConsole()
-                else -> null
-            }
+    private fun applyHandles(name: String): Any? {
+        return when (name) {
+            JSAlert.NAME -> JSAlert(baseContext)
+            JSConsole.NAME -> JSConsole()
+            JSFiles.NAME -> JSFiles(baseContext)
+            else -> null
         }
     }
 
     private fun consoleInJs() {
-        val request = JsRequest(module = "Print", method = "consoleInJs")
-        val jbt = JSONObject()
         count += 1
-        jbt.put("count", count)
-        jbt.put("msg", "call by android")
-        request.payload = jbt.toString()
-        jsNativeCross.invoke(request) { result ->
-            val hint: String =
-                if (result.success) "success: ${result.data}" else "failure: ${result.msg}"
-            Toast.makeText(baseContext, hint, Toast.LENGTH_SHORT).show()
+        val map: MutableMap<String, Any> = HashMap()
+        map["count"] = count
+        map["msg"] = "call by android"
+        val path: String = jsInvoker.joinPath("Print", "consoleInJs")
+        jsInvoker.js(path, map) { result: String ->
+            Toast.makeText(baseContext, result, Toast.LENGTH_SHORT).show()
         }
     }
 
     override fun onDestroy() {
+        jsInvoker.close()
         super.onDestroy()
-        jsNativeCross.close()
     }
 }

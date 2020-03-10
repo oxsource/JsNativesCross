@@ -13,46 +13,66 @@
         }
     };
 
-    function jsonResult(success, data, msg){
-       const obj = jsonString(data);
-       const result = {success, msg, data: obj};
-       return result;
+    const callbackQueue = [];
+    let lastInvokeStamp = 0;
+
+    function handleCallback(method, params){
+        const saved = callbackQueue.find(e => e.id == method)
+        if(!saved || typeof(saved.resolve) != 'function'){
+            console.log(`native2js callback id(${method}) not exist.`);
+            return
+        }
+        try{
+            saved.resolve(params)
+        }catch(e){
+            console.log(e);
+        }finally{
+          callbackQueue.pop(saved)
+        }
     };
 
     window._natives = {
       on: function(apis){
-          window._native2js = function(request){
-              const module = apis[request.module];
-              const natives = window._natives;
-              if(!module) return natives.failure(msg = `NoSuchJSModule: ${request.module}`);
-              const caller = module[request.method];
-              if(typeof(caller) !== 'function') return natives.failure(msg = `NoSuchJSMethod: ${request.method}@${request.module}`);
-              const payload = jsonObject(request.payload);
-              return caller.call(caller, payload);
+          window._native2js = function(path, payload){
+              const paths = path.split('/');
+              if(!paths || paths.length != 2) {
+                  console.log('native2js path mismatch.');
+                  return ''
+              }
+              const moduleKey = paths[0];
+              const methodKey = paths[1];
+              const params = jsonObject(payload);
+              //invoke js callback
+              if('CallbackQueue' == moduleKey) {
+                  return handleCallback(methodKey, params)
+              }
+              //invoke js function
+              const module = apis[moduleKey]
+              if(!module) {
+                  console.log(`native2js NoSuchJSModule(${moduleKey}).`);
+                  return ''
+              }
+              const caller = module[methodKey];
+              if(typeof(caller) !== 'function') {
+                  console.log(`native2js NoSuchJSMethod(${methodKey}).`);
+                  return ''
+              }
+              return caller(params);
           }
       },
 
-      require: function(requires, use = true){
-          const natives = window._natives;
-          return natives.invoke('MODULE_PROVIDER', use ? 'inject': 'reject', requires)
-      },
-
-      invoke: function(module, method, payload){
-           const natives = window._natives;
-           const invoker = window._js2native;
-           if(!invoker) return natives.failure(msg = `js2native is undefined.`);;
-           const obj = jsonString(payload);
-           const requestText = JSON.stringify({module, method, payload: obj});
-           const responseText = invoker.invoke(requestText);
-           return JSON.parse(responseText);
-       },
-
-       success: function(data = "", msg = ""){
-           return jsonResult(success = true, data = data, msg = msg);
-       },
-
-       failure: function(msg = "", data = ""){
-           return jsonResult(success = false, data = data, msg = msg);
+      invoke: function(path, payload){
+            return new Promise(function(resolve, reject){
+                const invoker = window._js2native;
+                if(!invoker) return reject('js2native is undefined.');
+                const json = jsonString(payload);
+                let stamp = new Date().getTime()
+                stamp = stamp == lastInvokeStamp? stamp + 1 : stamp
+                lastInvokeStamp = stamp
+                const id = `${stamp}`
+                callbackQueue.push({id, resolve})
+                invoker.invoke(path, json, id);
+            })
        }
     };
 })();

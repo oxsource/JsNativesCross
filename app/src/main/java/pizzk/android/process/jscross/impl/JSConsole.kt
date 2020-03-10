@@ -1,32 +1,35 @@
 package pizzk.android.process.jscross.impl
 
 import android.util.Log
-import pizzk.android.js.natives.JsInvoker
-import pizzk.android.js.natives.JsResult
+import pizzk.android.js.natives.JsFunction
 
 /**
  * JS原生日志
  */
-class JSConsole : JsInvoker.Hook {
+class JSConsole {
     companion object {
         const val NAME = "Console"
         private const val TAG_NAME = "JSConsole"
-        private const val INFO = "info"
-        private const val DEBUG = "debug"
-        private const val WARN = "warn"
-        private const val ERROR = "error"
     }
 
-    override fun name(): String = NAME
+    @JsFunction(name = "i")
+    fun info(msg: String) {
+        Log.i(TAG_NAME, msg)
+    }
 
-    override fun dispatch(method: String, payload: String, result: JsResult): Boolean {
-        when (method) {
-            INFO -> Log.i(TAG_NAME, payload)
-            DEBUG -> Log.i(TAG_NAME, payload)
-            WARN -> Log.i(TAG_NAME, payload)
-            ERROR -> Log.i(TAG_NAME, payload)
-            else -> return false
-        }
-        return true
+    @JsFunction(name = "d")
+    fun debug(msg: String) {
+        Log.d(TAG_NAME, msg)
+    }
+
+    @JsFunction(name = "w")
+    fun warn(msg: String) {
+        Log.w(TAG_NAME, msg)
+    }
+
+
+    @JsFunction(name = "e")
+    fun error(msg: String) {
+        Log.e(TAG_NAME, msg)
     }
 }
