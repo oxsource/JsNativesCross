@@ -9,6 +9,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.Toast
+import pizzk.android.js.natives.ContextInjectFeature
 import pizzk.android.js.natives.JsInvoker
 import pizzk.android.process.jscross.impl.*
 
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         }
         //注册原生sdk功能模块
         jsInvoker = JsInvoker(vWeb, JsonParcelImpl).open(JsModuleKeys::provide)
+        jsInvoker.getInjector().addFeature(ContextInjectFeature())
         //加载index页面
         logger.start()
         vWeb.loadUrl("file:///android_asset/web/index.html")

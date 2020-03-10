@@ -1,13 +1,11 @@
 package pizzk.android.js.natives
 
-import android.content.Context
 import android.util.ArrayMap
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import pizzk.android.js.natives.annotate.JsAsync
 import pizzk.android.js.natives.annotate.JsFunction
-import pizzk.android.js.natives.annotate.JsInject
 import java.lang.reflect.Method
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.SynchronousQueue
@@ -40,6 +38,7 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
     private var hooks: MutableMap<String, Any> = ArrayMap()
     private var provider: ((String) -> Any?)? = null
     private var debug: Boolean = BuildConfig.DEBUG
+    private val injector: JsInjector = JsInjector()
 
     /**
      * open duplex channel
@@ -61,9 +60,11 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
         view.removeJavascriptInterface(NATIVE_API)
         this.provider = null
         connected = false
-        hooks.forEach { scanInject(it) }
+        injector.reject()
         hooks.clear()
     }
+
+    fun getInjector(): JsInjector = injector
 
     /**
      * native invoke javascript
@@ -128,39 +129,23 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
     }
 
     private fun findModule(name: String): Any? {
+        if (!connected) return null
         val cache: Any? = hooks[name]
         if (null != cache) return cache
         val provide: (String) -> Any? = this.provider ?: return null
         val obj: Any = provide(name) ?: return null
         hooks[name] = obj
-        scanInject(obj)
+        injector.inject(obj, view)
         return obj
     }
 
     private fun findMethod(clazz: Class<*>, name: String): Method? {
+        if (!connected) return null
         val methods: Array<Method> = clazz.methods ?: return null
         val annClazz: Class<JsFunction> = JsFunction::class.java
         return methods.find { m: Method ->
             val annotate: JsFunction = m.getAnnotation(annClazz) ?: return@find false
             return@find annotate.name == name
-        }
-    }
-
-    private fun scanInject(obj: Any) {
-        val clazz: Class<Any> = obj.javaClass
-        val methods: Array<Method> = clazz.methods ?: return
-        methods.forEach { method: Method ->
-            method.getAnnotation(JsInject::class.java) ?: return@forEach
-            val paramsTypes: Array<Class<*>> = method.parameterTypes
-            if (paramsTypes.size != 1) return@forEach
-            try {
-                when (paramsTypes[0]) {
-                    Context::class.java -> method.invoke(obj, if (connected) view.context else null)
-                    else -> return@forEach
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
         }
     }
 }
