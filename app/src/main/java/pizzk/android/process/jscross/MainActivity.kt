@@ -10,10 +10,7 @@ import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.Toast
 import pizzk.android.js.natives.JsInvoker
-import pizzk.android.process.jscross.impl.JSAlert
-import pizzk.android.process.jscross.impl.JSConsole
-import pizzk.android.process.jscross.impl.JSFiles
-import pizzk.android.process.jscross.impl.JsonParcelImpl
+import pizzk.android.process.jscross.impl.*
 
 class MainActivity : AppCompatActivity() {
     private lateinit var vWeb: WebView
@@ -42,19 +39,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
         //注册原生sdk功能模块
-        jsInvoker = JsInvoker(vWeb, JsonParcelImpl).open(::applyHandles)
+        jsInvoker = JsInvoker(vWeb, JsonParcelImpl).open(JsModuleKeys::provide)
         //加载index页面
         logger.start()
         vWeb.loadUrl("file:///android_asset/web/index.html")
-    }
-
-    private fun applyHandles(name: String): Any? {
-        return when (name) {
-            JSAlert.NAME -> JSAlert(baseContext)
-            JSConsole.NAME -> JSConsole()
-            JSFiles.NAME -> JSFiles(baseContext)
-            else -> null
-        }
     }
 
     private fun consoleInJs() {

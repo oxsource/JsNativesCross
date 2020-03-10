@@ -1,22 +1,18 @@
 package pizzk.android.js.natives
 
+import android.content.Context
 import android.util.ArrayMap
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import pizzk.android.js.natives.annotate.JsAsync
+import pizzk.android.js.natives.annotate.JsFunction
+import pizzk.android.js.natives.annotate.JsInject
 import java.lang.reflect.Method
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-
-@Target(AnnotationTarget.FUNCTION)
-@Retention(AnnotationRetention.RUNTIME)
-annotation class JsFunction(val name: String)
-
-@Target(AnnotationTarget.FUNCTION)
-@Retention(AnnotationRetention.RUNTIME)
-annotation class JsAsync
 
 class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
     companion object {
@@ -27,7 +23,7 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
         private const val JS_CALLBACK: String = "CallbackQueue"
         private const val PATH_SPLIT_STR = "/"
         //
-        private const val ERR_PATH_MISMATCH = "patch mismatch."
+        private const val ERR_PATH_MISMATCH = "path mismatch."
         private const val ERR_PARAM_TYPE = "param type error."
         private const val ERR_DISCONNECTED = "invoker disconnected."
         //thread pool
@@ -63,9 +59,10 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
     fun close() {
         if (!connected) return
         view.removeJavascriptInterface(NATIVE_API)
-        hooks.clear()
         this.provider = null
         connected = false
+        hooks.forEach { scanInject(it) }
+        hooks.clear()
     }
 
     /**
@@ -136,6 +133,7 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
         val provide: (String) -> Any? = this.provider ?: return null
         val obj: Any = provide(name) ?: return null
         hooks[name] = obj
+        scanInject(obj)
         return obj
     }
 
@@ -145,6 +143,24 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
         return methods.find { m: Method ->
             val annotate: JsFunction = m.getAnnotation(annClazz) ?: return@find false
             return@find annotate.name == name
+        }
+    }
+
+    private fun scanInject(obj: Any) {
+        val clazz: Class<Any> = obj.javaClass
+        val methods: Array<Method> = clazz.methods ?: return
+        methods.forEach { method: Method ->
+            method.getAnnotation(JsInject::class.java) ?: return@forEach
+            val paramsTypes: Array<Class<*>> = method.parameterTypes
+            if (paramsTypes.size != 1) return@forEach
+            try {
+                when (paramsTypes[0]) {
+                    Context::class.java -> method.invoke(obj, if (connected) view.context else null)
+                    else -> return@forEach
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }

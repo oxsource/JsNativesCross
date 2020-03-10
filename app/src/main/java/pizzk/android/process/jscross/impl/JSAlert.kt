@@ -2,23 +2,28 @@ package pizzk.android.process.jscross.impl
 
 import android.content.Context
 import android.widget.Toast
-import pizzk.android.js.natives.JsFunction
-import pizzk.android.js.natives.JsInvoker
+import pizzk.android.js.natives.annotate.JsFunction
+import pizzk.android.js.natives.annotate.JsInject
+import pizzk.android.js.natives.annotate.JsModule
 import java.lang.ref.WeakReference
 
 /**
  * JS原生Alert
  */
-class JSAlert(context: Context) {
-    companion object {
-        const val NAME = "Alert"
-    }
+@JsModule(name = "Alert")
+class JSAlert {
+    private var refContext: WeakReference<Context>? = null
 
-    private val refContext: WeakReference<Context> = WeakReference(context)
+    @JsInject
+    fun setContext(context: Context?) {
+        refContext?.clear()
+        if (null == context) return
+        refContext = WeakReference(context)
+    }
 
     @JsFunction(name = "showToast")
     fun showToast(msg: String) {
-        val context: Context = refContext.get() ?: return
+        val context: Context = refContext?.get() ?: return
         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
     }
 }
