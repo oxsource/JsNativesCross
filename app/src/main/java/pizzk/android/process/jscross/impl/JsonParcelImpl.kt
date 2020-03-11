@@ -7,7 +7,7 @@ import pizzk.android.js.natives.annotate.JsProvide
 import java.text.SimpleDateFormat
 import java.util.*
 
-@JsProvide(name = "JsModuleKeys", build = true)
+@JsProvide(name = "JsModuleKeys")
 object JsonParcelImpl : JsonParcel {
     private val mapper: ObjectMapper by lazy { ObjectMapper() }
     private const val DATE_FORMAT = "yyyy-MM-dd HH:mm:ss"

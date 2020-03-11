@@ -16,6 +16,10 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 @AutoService(Processor::class)
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 class AnnotateProcessor : AbstractProcessor() {
+    companion object {
+        private const val NAME = "AnnotateProcessor"
+    }
+
     private var debug: Boolean = true
     private var elements: Elements? = null
     private var filer: Filer? = null
@@ -39,17 +43,15 @@ class AnnotateProcessor : AbstractProcessor() {
         //parse Provider
         try {
             val providers: Set<Element> = env.getElementsAnnotatedWith(JsProvide::class.java)
-            log("providers size = ${providers.size}")
+            log("$NAME providers size = ${providers.size}")
             if (providers.isEmpty()) return false
             val pElement: Element = providers.iterator().next()
             val provider: JsProvide = pElement.getAnnotation(JsProvide::class.java)
-            log("provider need build = ${provider.build}")
-            if (!provider.build) return false
             val pkgName: String = elements.getPackageOf(pElement).asType().toString()
             val clazzName: String = provider.name
             //parse Module
             val modules: Set<Element> = env.getElementsAnnotatedWith(JsModule::class.java)
-            log("modules size = ${modules.size}")
+            log("$NAME modules size = ${modules.size}")
             val properties: List<PropertySpec> = modules.map {
                 val jsModule: JsModule = it.getAnnotation(JsModule::class.java)
                 val value: String = jsModule.name.toUpperCase(Locale.getDefault())
@@ -100,9 +102,9 @@ class AnnotateProcessor : AbstractProcessor() {
                 .addType(typeSpecProvider)
                 .build()
             file.writeTo(filer)
-            log("process success")
+            log("$NAME process success")
         } catch (e: Exception) {
-            log("process error: ${e.message}")
+            log("$NAME process error: ${e.message}")
         }
         return true
     }
@@ -113,4 +115,3 @@ class AnnotateProcessor : AbstractProcessor() {
         logger.printMessage(Diagnostic.Kind.WARNING, msg)
     }
 }
-

@@ -2,7 +2,7 @@ package pizzk.android.js.natives.annotate
 
 @Target(AnnotationTarget.TYPE, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class JsProvide(val name: String, val build: Boolean)
+annotation class JsProvide(val name: String)
 
 @Target(AnnotationTarget.TYPE, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
