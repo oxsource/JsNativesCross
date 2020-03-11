@@ -27,8 +27,12 @@
         init()
 
         async function showToast(){
-            await natives.invoke("Alert/showToast", "Hello， This is from javascript.")
-            alert("弹出Toast成功");
+            try{
+                await natives.invoke("Alert/showToast", "Hello， This is from javascript.")
+                alert("弹出Toast成功");
+            }catch(e){
+                alert(`弹出Toast失败:${e}`);
+            }
         }
 
         async function printLog(){

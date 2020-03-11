@@ -10,8 +10,9 @@ dependencies {
         exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk8"
     }
     def auto_service_version = '1.0-rc4'
-    annotationProcessor "com.google.auto.service:auto-service:$auto_service_version"
     kapt "com.google.auto.service:auto-service:$auto_service_version"
+    //noinspection AnnotationProcessorOnCompilePath
+    compileOnly "com.google.auto.service:auto-service:$auto_service_version"
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

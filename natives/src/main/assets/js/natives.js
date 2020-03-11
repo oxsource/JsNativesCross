@@ -13,22 +13,29 @@
         }
     };
 
+    const ERROR_PREFIX = 'ERROR@';
+    const CALLBACK_QUEUE_NAME = 'CallbackQueue'
     const callbackQueue = [];
     let lastInvokeStamp = 0;
 
     function handleCallback(method, params){
         const saved = callbackQueue.find(e => e.id == method)
-        if(!saved || typeof(saved.resolve) != 'function'){
-            console.log(`native2js callback id(${method}) not exist.`);
-            return
+        if(!saved || typeof(saved.resolve) != 'function' || typeof(saved.reject) != 'function'){
+            return `${ERROR_PREFIX}callback id(${method}) not exist.`
         }
+        let value = ''
         try{
-            saved.resolve(params)
+            if (params.startsWith(ERROR_PREFIX)){
+                saved.reject(params)
+            }else{
+                saved.resolve(jsonObject(params))
+            }
         }catch(e){
-            console.log(e);
+            value = `${ERROR_PREFIX}${e}.`
         }finally{
           callbackQueue.pop(saved)
         }
+        return value
     };
 
     window._natives = {
@@ -36,28 +43,24 @@
           window._native2js = function(path, payload){
               const paths = path.split('/');
               if(!paths || paths.length != 2) {
-                  console.log('native2js path mismatch.');
-                  return ''
+                  return `${ERROR_PREFIX}path mismatch.`
               }
               const moduleKey = paths[0];
               const methodKey = paths[1];
-              const params = jsonObject(payload);
               //invoke js callback
-              if('CallbackQueue' == moduleKey) {
-                  return handleCallback(methodKey, params)
+              if(CALLBACK_QUEUE_NAME == moduleKey) {
+                  return handleCallback(methodKey, payload)
               }
               //invoke js function
               const module = apis[moduleKey]
               if(!module) {
-                  console.log(`native2js NoSuchJSModule(${moduleKey}).`);
-                  return ''
+                  return `${ERROR_PREFIX}NoSuchJSModule(${moduleKey}).`
               }
               const caller = module[methodKey];
               if(typeof(caller) !== 'function') {
-                  console.log(`native2js NoSuchJSMethod(${methodKey}).`);
-                  return ''
+                  return `${ERROR_PREFIX}NoSuchJSMethod(${methodKey}).`
               }
-              return caller(params);
+              return caller(jsonObject(payload));
           }
       },
 
@@ -70,7 +73,7 @@
                 stamp = stamp == lastInvokeStamp? stamp + 1 : stamp
                 lastInvokeStamp = stamp
                 const id = `${stamp}`
-                callbackQueue.push({id, resolve})
+                callbackQueue.push({id, resolve, reject})
                 invoker.invoke(path, json, id);
             })
        }

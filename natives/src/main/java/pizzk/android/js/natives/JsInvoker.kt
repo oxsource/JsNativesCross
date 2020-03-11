@@ -24,6 +24,8 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
         private const val ERR_PATH_MISMATCH = "path mismatch."
         private const val ERR_PARAM_TYPE = "param type error."
         private const val ERR_DISCONNECTED = "invoker disconnected."
+        //
+        const val ERR_PREFIX = "ERROR@"
         //thread pool
         private val THREADS: ExecutorService by lazy {
             val min = 1
@@ -110,19 +112,19 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
             val isAsync: Boolean = method.getAnnotation(JsAsync::class.java) != null
             val runnable: () -> Unit = {
                 val value: String = try {
-                    val value: Any = method.invoke(module, params)
-                    parcel.string(value)
+                    val value: Any? = method.invoke(module, params)
+                    if (null == value) "" else parcel.string(value)
                 } catch (e: Exception) {
                     Log.e(TAG, "invoke runnable exception(${e.message})")
                     e.printStackTrace()
-                    ""
+                    "$ERR_PREFIX${e.message}"
                 }
                 js(callbackPath, value)
             }
             if (!connected) throw Exception(ERR_DISCONNECTED)
             if (isAsync) THREADS.execute(runnable) else view.post(runnable)
         } catch (e: Exception) {
-            js(callbackPath, payload = "")
+            js(callbackPath, payload = "$ERR_PREFIX${e.message}")
             Log.e(TAG, "invoke exception(${e.message})")
             e.printStackTrace()
         }
