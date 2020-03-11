@@ -36,7 +36,8 @@ dependencies {
     def jackson_version = '2.9.5'
     implementation "com.fasterxml.jackson.core:jackson-core:$jackson_version"
     implementation "com.fasterxml.jackson.core:jackson-databind:$jackson_version"
-//    implementation 'com.github.oxsource:JsNativesCross:1.0.4'
+//    implementation 'com.github.oxsource.JsNativesCross:natives:1.1.1'
+//    kapt 'com.github.oxsource.JsNativesCross:compiler:1.1.1'
     implementation project(':natives')
     kapt project(":compiler")
 }
