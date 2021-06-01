@@ -1,5 +1,8 @@
 package pizzk.android.js.natives
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -33,6 +36,14 @@ class JsNatives {
             val keepSec = 60L
             val queue = SynchronousQueue<Runnable>()
             return@lazy ThreadPoolExecutor(min, max, keepSec, TimeUnit.SECONDS, queue)
+        }
+
+        fun activity(view: WebView?, checkFinished: Boolean = true): Activity? {
+            val context: Context = view?.context ?: return null
+            val activity: Activity = (context as? ContextWrapper) as? Activity ?: return null
+            if (!checkFinished) return activity
+            if (activity.isFinishing || activity.isDestroyed) return null
+            return activity
         }
     }
 
