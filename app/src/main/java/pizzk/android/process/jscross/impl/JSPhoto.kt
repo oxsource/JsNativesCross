@@ -26,9 +26,15 @@ class JSPhoto {
             "camera" -> PickControl.ACTION_CAMERA
             else -> PickControl.ACTION_ALBUM
         }
-        val takeCallback: (Int, List<Uri>) -> Unit = { _, uris ->
-            val values = uris.map { PickUtils.filePath(activity, it.toString()) }
-            callback.success(values)
+        val takeCallback: PickControl.PickCallback = object : PickControl.PickCallback() {
+            override fun onSuccess(action: Int, uris: List<Uri>) {
+                val values = uris.map { PickUtils.filePath(activity, it.toString()) }
+                callback.success(values)
+            }
+
+            override fun onFailure(cancel: Boolean, msg: String) {
+                callback.failure(msg = "用户取消")
+            }
         }
         PickControl.obtain(true)
             .action(action)
