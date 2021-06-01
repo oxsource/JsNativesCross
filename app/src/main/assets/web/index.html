@@ -1,17 +1,18 @@
 <html>
-    <head>
-        <title>JSChannel SDK</title>
-        <meta charset="UTF-8"/>
-        <script src="../js/natives.js"></script>
-    </head>
-    <body>
-        <p>This is a test page.</p>
-        <p id="console"></p>
-        <button onclick="showToast()">显示Toast</button>
-        <button onclick="printLog()">打印日志</button>
-        <button onclick="saveFile()">保存文件</button>
-    </body>
-    <script type='text/javascript'>
+<head>
+    <title>JSChannel SDK</title>
+    <meta charset="UTF-8"/>
+    <script src="../js/natives.js"></script>
+</head>
+<body>
+<p>This is a test page.</p>
+<p id="console"></p>
+<button onclick="showToast()">显示Toast</button>
+<button onclick="printLog()">打印日志</button>
+<button onclick="takePhoto()">获取图片</button>
+<button onclick="obtainContract()">获取通讯录</button>
+</body>
+<script type='text/javascript'>
         const natives = window._natives;
         const Print = {
             consoleInJs: function(payload){
@@ -40,10 +41,20 @@
             alert("打印日志成功");
         }
 
-        async function saveFile(){
-            const payload = {path:'sdcard/download/jsb.demo', content:'this is from javascript.'}
-            const result = await natives.invoke("Files/saveFile", payload);
-            alert("保存文件成功:" + JSON.stringify(result));
+        async function takePhoto(){
+            //mode: 'album|camera'
+            //limit: 1~N, > 1 just support by album mode
+            const payload = {mode: "camera", limit: 3}
+            const result = await natives.invoke("Photo/take", payload);
+            //result:{data: [xxx, xxx]}
+            alert("获取照片成功:" + JSON.stringify(result));
         }
-    </script>
+
+        async function obtainContract(){
+            const payload = {}
+            const result = await natives.invoke("Contract/simples", payload);
+            //result:{data: [xxx, xxx]}
+            alert("获取通讯录成功:" + JSON.stringify(result));
+        }
+</script>
 </html>

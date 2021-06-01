@@ -1,4 +1,9 @@
 <resources>
     <string name="app_name">JsNativesCross</string>
     <string name="call_javascript">callJavaScript</string>
+    <string name="file_provider">pizzk.android.process.jscross.file.provider</string>
+
+    <string name="open_location_permission">请前往设置打开定位权限</string>
+    <string name="open_external_storage_permission">请前往设置打开外部存储读写权限</string>
+    <string name="open_read_contract_permission">请前往设置打开读取通讯录权限</string>
 </resources>

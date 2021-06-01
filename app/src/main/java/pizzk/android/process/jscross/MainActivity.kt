@@ -45,7 +45,9 @@ class MainActivity : AppCompatActivity() {
         jsNatives.modules(
             JSAlert::class.java,
             JSConsole::class.java,
-            JSFiles::class.java
+            JSFiles::class.java,
+            JSContract::class.java,
+            JSPhoto::class.java
         ).active(vWeb)
         //加载index页面
         logger.start()
