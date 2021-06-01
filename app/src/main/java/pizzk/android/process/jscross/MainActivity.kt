@@ -9,14 +9,16 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.Toast
-import pizzk.android.js.natives.ContextInjectFeature
-import pizzk.android.js.natives.JsInvoker
+import com.fasterxml.jackson.core.type.TypeReference
+import pizzk.android.js.natives.JsNatives
+import pizzk.android.js.natives.JsonParcelImpl
 import pizzk.android.process.jscross.impl.*
 
 class MainActivity : AppCompatActivity() {
     private lateinit var vWeb: WebView
     private lateinit var btCallJs: Button
-    private lateinit var jsInvoker: JsInvoker
+    private val jsNatives: JsNatives = JsNatives()
+
     //
     private var count: Int = 0
     private val logger: RunTimeLogger by lazy { RunTimeLogger(name = "WebView") }
@@ -40,8 +42,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
         //注册原生sdk功能模块
-        jsInvoker = JsInvoker(vWeb, JsonParcelImpl).open(JsModuleKeys::provide)
-        jsInvoker.getInjector().addFeature(ContextInjectFeature())
+        jsNatives.modules(
+            JSAlert::class.java,
+            JSConsole::class.java,
+            JSFiles::class.java
+        ).active(vWeb)
         //加载index页面
         logger.start()
         vWeb.loadUrl("file:///android_asset/web/index.html")
@@ -52,14 +57,18 @@ class MainActivity : AppCompatActivity() {
         val map: MutableMap<String, Any> = HashMap()
         map["count"] = count
         map["msg"] = "call by android"
-        val path: String = jsInvoker.joinPath("Print", "consoleInJs")
-        jsInvoker.js(path, map) { result: String ->
-            Toast.makeText(baseContext, result, Toast.LENGTH_SHORT).show()
+        val path: String = jsNatives.joinPath("Print", "consoleInJs")
+        jsNatives.js(path, map) { result: String ->
+            val tf: TypeReference<HashMap<String, Any>> =
+                object : TypeReference<HashMap<String, Any>>() {}
+            val maps: Map<String, Any> = JsonParcelImpl.parse(result, tf) ?: emptyMap()
+            val value = "code = ${maps["code"]}, who = ${maps["who"]}"
+            Toast.makeText(baseContext, value, Toast.LENGTH_SHORT).show()
         }
     }
 
     override fun onDestroy() {
-        jsInvoker.close()
+        jsNatives.release()
         super.onDestroy()
     }
 }

@@ -1,9 +1,9 @@
 package pizzk.android.process.jscross.impl
 
 import android.util.Log
-import pizzk.android.js.natives.annotate.JsAsync
-import pizzk.android.js.natives.annotate.JsFunction
-import pizzk.android.js.natives.annotate.JsModule
+import pizzk.android.js.natives.JsAsync
+import pizzk.android.js.natives.JsFunction
+import pizzk.android.js.natives.JsModule
 
 @JsModule(name = "Files")
 class JSFiles {

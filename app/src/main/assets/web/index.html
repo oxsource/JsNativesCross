@@ -17,7 +17,7 @@
             consoleInJs: function(payload){
                 const {count, msg} = payload
                 document.getElementById('console').innerText = `${msg}: ${count}`;
-                return natives.success(data = {code: count + 1, who: 'consoleInJs@Print'});
+                return {code: count + 1, who: 'consoleInJs@Print'};
             }
         }
         natives.on({Print});

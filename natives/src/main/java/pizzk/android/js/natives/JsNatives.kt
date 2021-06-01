@@ -1,31 +1,31 @@
 package pizzk.android.js.natives
 
-import android.util.ArrayMap
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import pizzk.android.js.natives.annotate.JsAsync
-import pizzk.android.js.natives.annotate.JsFunction
 import java.lang.reflect.Method
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
-class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
+class JsNatives {
     companion object {
         private const val TAG: String = "JsInvoker"
+
         //
         private const val NATIVE_API: String = "_js2native"
         private const val JS_API: String = "_native2js"
         private const val JS_CALLBACK: String = "CallbackQueue"
         private const val PATH_SPLIT_STR = "/"
+
         //
         private const val ERR_PATH_MISMATCH = "path mismatch."
-        private const val ERR_PARAM_TYPE = "param type error."
         private const val ERR_DISCONNECTED = "invoker disconnected."
+
         //
         const val ERR_PREFIX = "ERROR@"
+
         //thread pool
         private val THREADS: ExecutorService by lazy {
             val min = 1
@@ -36,52 +36,48 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
         }
     }
 
-    private var connected: Boolean = false
-    private var hooks: MutableMap<String, Any> = ArrayMap()
-    private var provider: ((String) -> Any?)? = null
+    private var view: WebView? = null
+    private val provider: JsProvider = JsProvider()
     private var debug: Boolean = BuildConfig.DEBUG
-    private val injector: JsInjector = JsInjector()
+    private var parcel: JsonParcel = JsonParcelImpl
+
+    fun modules(vararg clazz: Class<*>): JsNatives {
+        clazz.iterator().forEach(provider::append)
+        return this
+    }
 
     /**
      * open duplex channel
      */
-    fun open(provider: (String) -> Any?): JsInvoker {
-        if (connected) return this
-        hooks.clear()
-        this.provider = provider
-        view.addJavascriptInterface(this, NATIVE_API)
-        connected = true
+    fun active(web: WebView): JsNatives {
+        if (null != view) return this
+        web.addJavascriptInterface(this, NATIVE_API)
+        view = web
         return this
     }
 
     /**
      * close duplex channel
      */
-    fun close() {
-        if (!connected) return
-        view.removeJavascriptInterface(NATIVE_API)
-        this.provider = null
-        connected = false
-        injector.reject()
-        hooks.clear()
+    fun release() {
+        val web = view ?: return
+        web.removeJavascriptInterface(NATIVE_API)
     }
-
-    fun getInjector(): JsInjector = injector
 
     /**
      * native invoke javascript
      */
     fun js(path: String, payload: Any?, block: (String) -> Unit = {}) {
         try {
-            if (!connected) throw Exception(ERR_DISCONNECTED)
-            if (Thread.currentThread() != view.handler.looper.thread) {
-                view.post { js(path, payload, block) }
+            val web = view ?: throw Exception(ERR_DISCONNECTED)
+            if (Thread.currentThread() != web.handler.looper.thread) {
+                web.post { js(path, payload, block) }
                 return
             }
             val params: String = payload?.let(parcel::string) ?: ""
             if (debug) Log.d(TAG, "js(path=$path, params=$params)")
             val script = "javascript:$JS_API('$path', '$params')"
-            view.evaluateJavascript(script) { s: String? -> block(s ?: "") }
+            web.evaluateJavascript(script) { s: String? -> block(s ?: "") }
         } catch (e: Exception) {
             e.printStackTrace()
             Log.e(TAG, "js exception(${e.message})")
@@ -95,24 +91,25 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
         val callbackPath: String = joinPath(JS_CALLBACK, callback)
         try {
             if (debug) Log.d(TAG, "invoke(path=$path, payload=$payload, callback=$callback)")
-            if (!connected) throw Exception(ERR_DISCONNECTED)
+            val web = view ?: throw Exception(ERR_DISCONNECTED)
             val size = 2
             val paths: List<String> = path.split(PATH_SPLIT_STR, limit = size)
             if (paths.size != size) throw Exception(ERR_PATH_MISMATCH)
-            val moduleKey: String = paths[0]
-            val methodKey: String = paths[1]
-            val module: Any = findModule(moduleKey) ?: throw Exception(ERR_PATH_MISMATCH)
+            val kModule: String = paths[0]
+            val kMethod: String = paths[1]
+            val module: Any = provider.get(kModule) ?: throw Exception(ERR_PATH_MISMATCH)
             //
-            val clazz: Class<*> = module.javaClass
-            val method: Method = findMethod(clazz, methodKey) ?: throw Exception(ERR_PATH_MISMATCH)
-            val paramsTypes: Array<Class<*>> = method.parameterTypes
-            if (paramsTypes.size != 1) throw Exception(ERR_PARAM_TYPE)
-            //
-            val params: Any = parcel.parse(payload, paramsTypes[0]) ?: return
+            val mClazz: Class<*> = module.javaClass
+            val method: Method = provider.get(mClazz, kMethod) ?: throw Exception(ERR_PATH_MISMATCH)
+            val paramsTypes: Array<Class<*>> = method.parameterTypes ?: emptyArray()
+            val params: List<Any> = paramsTypes.map { c: Class<*> ->
+                if (c == WebView::class.java) return@map web
+                return@map parcel.parse(payload, c)
+            }.filterNotNull()
             val isAsync: Boolean = method.getAnnotation(JsAsync::class.java) != null
             val runnable: () -> Unit = {
                 val value: String = try {
-                    val value: Any? = method.invoke(module, params)
+                    val value: Any? = method.invoke(module, *params.toTypedArray())
                     if (null == value) "" else parcel.string(value)
                 } catch (e: Exception) {
                     Log.e(TAG, "invoke runnable exception(${e.message})")
@@ -121,33 +118,11 @@ class JsInvoker(private val view: WebView, private val parcel: JsonParcel) {
                 }
                 js(callbackPath, value)
             }
-            if (!connected) throw Exception(ERR_DISCONNECTED)
-            if (isAsync) THREADS.execute(runnable) else view.post(runnable)
+            if (isAsync) THREADS.execute(runnable) else web.post(runnable)
         } catch (e: Exception) {
             js(callbackPath, payload = "$ERR_PREFIX${e.message}")
             Log.e(TAG, "invoke exception(${e.message})")
             e.printStackTrace()
-        }
-    }
-
-    private fun findModule(name: String): Any? {
-        if (!connected) return null
-        val cache: Any? = hooks[name]
-        if (null != cache) return cache
-        val provide: (String) -> Any? = this.provider ?: return null
-        val obj: Any = provide(name) ?: return null
-        hooks[name] = obj
-        injector.inject(obj, view)
-        return obj
-    }
-
-    private fun findMethod(clazz: Class<*>, name: String): Method? {
-        if (!connected) return null
-        val methods: Array<Method> = clazz.methods ?: return null
-        val annClazz: Class<JsFunction> = JsFunction::class.java
-        return methods.find { m: Method ->
-            val annotate: JsFunction = m.getAnnotation(annClazz) ?: return@find false
-            return@find annotate.name == name
         }
     }
 }
