@@ -30,7 +30,7 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 
-    implementation 'com.github.oxsource:JsNativesCross:1.2.0'
-//    implementation project(':natives')
+//    implementation 'com.github.oxsource:JsNativesCross:1.2.0'
+    implementation project(':natives')
     implementation "com.fasterxml.jackson.core:jackson-core:$jackson_version"
 }

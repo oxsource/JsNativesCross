@@ -104,10 +104,14 @@ class JsNatives {
             val paramsTypes: Array<Class<*>> = method.parameterTypes ?: emptyArray()
             val params: List<Any> = paramsTypes.map { c: Class<*> ->
                 if (c == WebView::class.java) return@map web
+                if (c == JsCallback::class.java) {
+                    return@map JsCallback(this, callbackPath)
+                }
                 return@map parcel.parse(payload, c)
             }.filterNotNull()
+            val jsCallbackUsed = params.find { it.javaClass == JsCallback::class.java } != null
             val isAsync: Boolean = method.getAnnotation(JsAsync::class.java) != null
-            val runnable: () -> Unit = {
+            val runnable: () -> Unit = runnable@{
                 val value: String = try {
                     val value: Any? = method.invoke(module, *params.toTypedArray())
                     if (null == value) "" else parcel.string(value)
@@ -116,6 +120,7 @@ class JsNatives {
                     e.printStackTrace()
                     "$ERR_PREFIX${e.message}"
                 }
+                if (jsCallbackUsed && !value.startsWith(ERR_PREFIX)) return@runnable
                 js(callbackPath, value)
             }
             if (isAsync) THREADS.execute(runnable) else web.post(runnable)
