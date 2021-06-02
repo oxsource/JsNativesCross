@@ -1,5 +1,8 @@
 package pizzk.android.js.natives
 
+/**
+ * JS2Native Callback
+ */
 class JsCallback(private val jsNatives: JsNatives, private val path: String) {
 
     fun call(value: Any) {
