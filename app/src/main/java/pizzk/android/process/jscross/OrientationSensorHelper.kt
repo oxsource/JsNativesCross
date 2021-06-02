@@ -71,13 +71,24 @@ class OrientationSensorHelper : SensorEventListener {
             magnetometerReading
         )
         SensorManager.getOrientation(rotationMatrix, orientationAngles)
-        val values = orientationAngles.map { Math.toDegrees(it.toDouble()).toFloat() }
-        callback.invoke(values[0], values[1], values[2])
+        callback.invoke(orientationAngles[0], orientationAngles[1], orientationAngles[2])
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, value: Int) = Unit
 
     fun setCallback(block: (Float, Float, Float) -> Unit) {
         this.callback = block
+    }
+
+    class ValueAdapter(private val threshold: Int) {
+        private var lastDeg: Int = 0
+
+        fun opt(radian: Float): Float? {
+            val deg = Math.toDegrees(radian.toDouble()).toFloat()
+            val degInt = deg.toInt()
+            if (kotlin.math.abs(degInt - lastDeg) < threshold) return null
+            lastDeg = degInt
+            return (360 - deg) % 360
+        }
     }
 }

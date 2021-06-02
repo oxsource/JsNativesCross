@@ -14,9 +14,11 @@ class FxActivity : AppCompatActivity() {
         setContentView(R.layout.activity_fx)
         iv = findViewById(R.id.iv)
         sensorHelper.onCreate(context = baseContext)
+        val azimuthAdapter = OrientationSensorHelper.ValueAdapter(threshold = 2)
         sensorHelper.setCallback { azimuth, _, _ ->
-            Log.d("FxActivity", "azimuth=$azimuth")
-            iv?.rotation = azimuth
+            val value = azimuthAdapter.opt(azimuth) ?: return@setCallback
+            Log.d("FxActivity", "azimuth=$value")
+            iv?.rotation = value
         }
     }
 
