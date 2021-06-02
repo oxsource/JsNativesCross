@@ -19,7 +19,7 @@ class JsNatives {
         //
         private const val NATIVE_API: String = "_js2native"
         private const val JS_API: String = "_native2js"
-        private const val JS_CALLBACK: String = "CallbackQueue"
+        private const val JS2NATIVE_CALLBACK: String = "JS2NATIVE_CALLBACK"
         private const val PATH_SPLIT_STR = "/"
 
         //
@@ -99,7 +99,7 @@ class JsNatives {
 
     @JavascriptInterface
     fun invoke(path: String, payload: String, callback: String) {
-        val callbackPath: String = joinPath(JS_CALLBACK, callback)
+        val callbackPath: String = joinPath(JS2NATIVE_CALLBACK, callback)
         try {
             if (debug) Log.d(TAG, "invoke(path=$path, payload=$payload, callback=$callback)")
             val web = view ?: throw Exception(ERR_DISCONNECTED)
