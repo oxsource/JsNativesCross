@@ -1,6 +1,7 @@
 package pizzk.android.process.jscross
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
@@ -52,6 +53,8 @@ class MainActivity : AppCompatActivity() {
         //加载index页面
         logger.start()
         vWeb.loadUrl("file:///android_asset/web/index.html")
+
+        startActivity(Intent(this, FxActivity::class.java))
     }
 
     private fun consoleInJs() {
@@ -59,7 +62,7 @@ class MainActivity : AppCompatActivity() {
         val map: MutableMap<String, Any> = HashMap()
         map["count"] = count
         map["msg"] = "call by android"
-        val path: String = jsNatives.joinPath("Print", "consoleInJs")
+        val path: String = jsNatives.joinPath("Print", "console")
         jsNatives.js(path, map) { result: String ->
             val tf: TypeReference<HashMap<String, Any>> =
                 object : TypeReference<HashMap<String, Any>>() {}
@@ -69,8 +72,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        vWeb.onPause()
+    }
+
     override fun onDestroy() {
         jsNatives.release()
+        vWeb.destroy()
         super.onDestroy()
     }
 }

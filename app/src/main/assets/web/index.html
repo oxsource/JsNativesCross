@@ -7,6 +7,7 @@
 <body>
 <p>This is a test page.</p>
 <p id="console"></p>
+<p id="gyroscope"></p>
 <button onclick="showToast()">显示Toast</button>
 <button onclick="printLog()">打印日志</button>
 <button onclick="takePhoto()">获取图片</button>
@@ -15,13 +16,18 @@
 <script type='text/javascript'>
         const natives = window._natives;
         const Print = {
-            consoleInJs: function(payload){
+            console: function(payload){
                 const {count, msg} = payload
-                document.getElementById('console').innerText = `${msg}: ${count}`;
-                return {code: count + 1, who: 'consoleInJs@Print'};
+                document.getElementById('console').innerText = `count=${count}, msg=${msg}`;
+                return {code: count, who: 'consoleInJs@Print'};
             }
         }
-        natives.on({Print});
+        const Gyroscope = {
+            send: function(e){
+                document.getElementById('gyroscope').innerText = `${e}`;
+            }
+        }
+        natives.inject({Print, Gyroscope});
         //ready
 
         async function init(){await natives.invoke("Console/i", "js natives bridge is ready.");}
@@ -41,13 +47,16 @@
             alert("打印日志成功");
         }
 
-        async function takePhoto(){
+        function takePhoto(){
             //mode: 'album|camera'
             //limit: 1~N, > 1 just support by album mode
-            const payload = {mode: "camera", limit: 3}
-            const result = await natives.invoke("Photo/take", payload);
-            //result:{data: [xxx, xxx]}
-            alert("获取照片成功:" + JSON.stringify(result));
+            const payload = {mode: "album", limit: 3}
+            natives.invoke("Photo/take", payload).then(result => {
+                //result:{data: [xxx, xxx]}
+                alert("获取照片成功:" + JSON.stringify(result));
+            }).catch(err => {
+                alert("获取照片失败:" + err);
+            });
         }
 
         async function obtainContract(){
@@ -56,5 +65,6 @@
             //result:{data: [xxx, xxx]}
             alert("获取通讯录成功:" + JSON.stringify(result));
         }
+
 </script>
 </html>
