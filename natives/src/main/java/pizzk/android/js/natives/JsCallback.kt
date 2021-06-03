@@ -9,7 +9,7 @@ class JsCallback(private val jsNatives: JsNatives, private val path: String) {
         jsNatives.js(path, value)
     }
 
-    fun failure(msg: String = "call failed.") {
+    fun failure(msg: String = "failed") {
         call(value = "${JsNatives.ERR_PREFIX}$msg")
     }
 
