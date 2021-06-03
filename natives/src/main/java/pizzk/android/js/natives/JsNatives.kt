@@ -6,6 +6,7 @@ import android.content.ContextWrapper
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.SynchronousQueue
@@ -14,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 class JsNatives {
     companion object {
-        private const val TAG: String = "JsInvoker"
+        private const val TAG: String = "JsNatives"
 
         //
         private const val NATIVE_API: String = "_js2native"
@@ -127,9 +128,10 @@ class JsNatives {
                     val value: Any? = method.invoke(module, *params.toTypedArray())
                     if (null == value) "" else parcel.string(value)
                 } catch (e: Exception) {
-                    Log.e(TAG, "invoke runnable exception(${e.message})")
-                    e.printStackTrace()
-                    "$ERR_PREFIX${e.message}"
+                    val exp = (e as? InvocationTargetException)?.targetException ?: e
+                    Log.e(TAG, "invoke runnable exception(${exp.message})")
+                    exp.printStackTrace()
+                    "$ERR_PREFIX${exp.message}"
                 }
                 if (jsCallbackUsed && !value.startsWith(ERR_PREFIX)) return@runnable
                 js(callbackPath, value)
