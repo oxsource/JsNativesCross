@@ -20,7 +20,7 @@
                 return {code: count + 1, who: 'consoleInJs@Print'};
             }
         }
-        natives.on({Print});
+        natives.inject({Print});
         //ready
 
         async function init(){await natives.invoke("Console/i", "js natives bridge is ready.");}

@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WebView.setWebContentsDebuggingEnabled(true)
         setContentView(R.layout.activity_main)
         vWeb = findViewById(R.id.vWeb)
         btCallJs = findViewById(R.id.btCallJs)

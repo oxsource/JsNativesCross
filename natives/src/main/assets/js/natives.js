@@ -86,19 +86,33 @@
         },
 
         /**
-         * JS端调用原生的方法(window._js2native)
+         * JS端调用原生的方法
          */
         invoke: function (path, payload) {
             return new Promise(function (resolve, reject) {
-                const invoker = window._js2native;
-                if (!invoker) return reject('js2native is undefined.');
+                const js2native = (function () {
+                    const android = window
+                    if (android._js2native) {
+                        return function (path, payload, callback) {
+                            android._js2native.invoke(path, payload, callback)
+                        }
+                    }
+                    const ios = (window.webkit || {}).messageHandlers || {}
+                    if (ios._js2native) {
+                        return function (path, payload, callback) {
+                            ios._js2native.postMessage({ path, payload, callback })
+                        }
+                    }
+                    return null
+                })()
+                if (!js2native) return reject('js2native is undefined.');
                 const json = jsonString(payload);
                 let stamp = new Date().getTime()
                 stamp = stamp == lastInvokeStamp ? stamp + 1 : stamp
                 lastInvokeStamp = stamp
                 const id = `${stamp}`
                 JS_CALLBACKS.push({ id, resolve, reject })
-                invoker.invoke(path, json, id);
+                js2native(path, json, id);
             })
         }
     };
