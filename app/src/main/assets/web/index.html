@@ -23,16 +23,14 @@
         natives.inject({Print});
         //ready
 
-        async function init(){await natives.invoke("Console/i", "js natives bridge is ready.");}
+        async function init(){
+            await natives.invoke("Console/i", "js natives bridge is ready.");
+        }
         init()
 
         async function showToast(){
-            try{
-                await natives.invoke("Alert/showToast", "Hello， This is from javascript.")
-                alert("弹出Toast成功");
-            }catch(e){
-                alert(`弹出Toast失败:${e}`);
-            }
+            const rsp = await natives.invoke("Alert/showToast", "Hello， This is from javascript.")
+            alert(rsp.success? "弹出Toast成功": `弹出Toast失败:${rsp.msg}`);
         }
 
         async function printLog(){

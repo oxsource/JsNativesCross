@@ -10,11 +10,15 @@ class JsCallback(private val jsNatives: JsNatives, private val path: String) {
     }
 
     fun failure(msg: String = "failed") {
-        call(value = "${JsNatives.ERR_PREFIX}$msg")
+        val maps: MutableMap<String, Any> = mutableMapOf()
+        maps["success"] = false
+        maps["msg"] = msg
+        call(maps)
     }
 
     fun success(value: Any) {
         val maps: MutableMap<String, Any> = mutableMapOf()
+        maps["success"] = true
         maps["data"] = value
         call(maps)
     }

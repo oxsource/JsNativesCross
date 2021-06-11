@@ -13,7 +13,10 @@
          }
      }
 
-     const ERROR_PREFIX = 'ERROR@'
+     function response(success, msg) {
+         return { success: success, msg: msg }
+     }
+
      const JS2NATIVE_CALLBACK = 'JS2NATIVE_CALLBACK'
      const JS_CALLBACKS = []
      const JS_MODULES = {}
@@ -25,32 +28,37 @@
       */
      function handleJs2NativeCallback(method, params) {
          const saved = JS_CALLBACKS.find(e => e.id == method)
-         if (!saved || typeof (saved.resolve) != 'function' || typeof (saved.reject) != 'function') {
-             return `${ERROR_PREFIX}callback id(${method}) not exist.`
+         if (!saved || typeof (saved.resolve) != 'function') {
+             return response(false, `callback id(${method}) not exist.`)
          }
          let value = ''
          try {
-             if (params.startsWith(ERROR_PREFIX)) {
-                 saved.reject(params.replace(ERROR_PREFIX, ''))
-             } else {
-                 saved.resolve(jsonObject(params))
-             }
+             saved.resolve(jsonObject(params))
          } catch (e) {
-             value = `${ERROR_PREFIX}${e}.`
+             value = `${e}.`
+             saved.resolve(response(false, value))
          } finally {
              JS_CALLBACKS.pop(saved)
          }
-         return value
+         return response(value.length <= 0, value)
      }
 
      /**
       * 原生调用JS端的方法(window._native2js)
       */
-     window._native2js = function (path, payload) {
+     window._native2js = function (params) {
+         //compat android and ios
+         params = jsonObject(params)
+         if (!params || typeof (params) != 'object') {
+             return response(false, 'native2js params type is not object.')
+         }
+         const path = params.path || ""
+         delete params.path
          const paths = path.split('/')
          if (!paths || paths.length != 2) {
-             return `${ERROR_PREFIX}path mismatch.`
+             return response(false, 'path mismatch.')
          }
+         const payload = params.payload || {}
          const moduleKey = paths[0]
          const methodKey = paths[1]
          //invoke js callback
@@ -60,11 +68,11 @@
          //invoke js function
          const module = JS_MODULES[moduleKey]
          if (!module) {
-             return `${ERROR_PREFIX}NoSuchJSModule(${moduleKey}).`
+             return response(false, `NoSuchJSModule(${moduleKey}).`)
          }
          const caller = module[methodKey]
          if (typeof (caller) !== 'function') {
-             return `${ERROR_PREFIX}NoSuchJSMethod(${methodKey}).`
+             return response(false, `NoSuchJSMethod(${methodKey}).`)
          }
          return caller(jsonObject(payload))
      }
@@ -91,21 +99,22 @@
           */
          invoke: function (path, payload) {
              return new Promise(function (resolve, reject) {
-                 const invoke = (js2native ||= (() => {
+                 const invoker = js2native || (() => {
                      const android = window._js2native
-                     if (android) return (path, payload, cb) => android.invoke(path, payload, cb)
+                     if (android) return (path, args, cb) => android.invoke(path, args, cb)
                      const ios = ((window.webkit || {}).messageHandlers || {})._js2native
-                     if (ios) return (path, payload, cb) => ios.postMessage({ path, payload, cb })
+                     if (ios) return (path, args, cb) => ios.postMessage({ path, args, cb })
                      return null
-                 })())
-                 if (!invoke) return reject('js2native is undefined.')
+                 })()
+                 js2native = invoker
+                 if (!invoker) return reject(response(false, 'js2native is undefined.'))
                  const json = jsonString(payload)
                  let stamp = new Date().getTime()
                  stamp = stamp == lastInvokeStamp ? stamp + 1 : stamp
                  lastInvokeStamp = stamp
                  const id = `${stamp}`
                  JS_CALLBACKS.push({ id, resolve, reject })
-                 invoke(path, json, id)
+                 invoker(path, json, `${JS2NATIVE_CALLBACK}/${id}`)
              })
          }
      }

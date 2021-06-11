@@ -20,15 +20,11 @@ class JsNatives {
         //
         private const val NATIVE_API: String = "_js2native"
         private const val JS_API: String = "_native2js"
-        private const val JS2NATIVE_CALLBACK: String = "JS2NATIVE_CALLBACK"
         private const val PATH_SPLIT_STR = "/"
 
         //
         private const val ERR_PATH_MISMATCH = "path mismatch."
         private const val ERR_DISCONNECTED = "invoker disconnected."
-
-        //
-        const val ERR_PREFIX = "ERROR@"
 
         //thread pool
         private val THREADS: ExecutorService by lazy {
@@ -86,9 +82,12 @@ class JsNatives {
                 web.post { js(path, payload, block) }
                 return
             }
-            val params: String = payload?.let(parcel::string) ?: ""
-            if (debug) Log.d(TAG, "js(path=$path, params=$params)")
-            val script = "javascript:$JS_API('$path', '$params')"
+            val maps = mutableMapOf<String, Any?>()
+            maps["path"] = path
+            maps["payload"] = payload
+            val params: String = maps.let(parcel::string)
+            val script = "javascript:$JS_API('$params')"
+            if (debug) Log.d(TAG, script)
             web.evaluateJavascript(script) { s: String? -> block(s ?: "") }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -100,7 +99,7 @@ class JsNatives {
 
     @JavascriptInterface
     fun invoke(path: String, payload: String, callback: String) {
-        val callbackPath: String = joinPath(JS2NATIVE_CALLBACK, callback)
+        val jsCallback = JsCallback(this, callback)
         try {
             if (debug) Log.d(TAG, "invoke(path=$path, payload=$payload, callback=$callback)")
             val web = view ?: throw Exception(ERR_DISCONNECTED)
@@ -114,31 +113,33 @@ class JsNatives {
             val mClazz: Class<*> = module.javaClass
             val method: Method = provider.get(mClazz, kMethod) ?: throw Exception(ERR_PATH_MISMATCH)
             val paramsTypes: Array<Class<*>> = method.parameterTypes ?: emptyArray()
-            val params: List<Any> = paramsTypes.map { c: Class<*> ->
-                if (c == WebView::class.java) return@map web
-                if (c == JsCallback::class.java) {
-                    return@map JsCallback(this, callbackPath)
-                }
-                return@map parcel.parse(payload, c)
+            val params: List<Any> = paramsTypes.map { clazz: Class<*> ->
+                if (clazz == WebView::class.java) return@map web
+                if (clazz == JsCallback::class.java) return@map jsCallback
+                return@map parcel.parse(payload, clazz)
             }.filterNotNull()
             val jsCallbackUsed = params.find { it.javaClass == JsCallback::class.java } != null
             val isAsync: Boolean = method.getAnnotation(JsAsync::class.java) != null
             val runnable: () -> Unit = runnable@{
                 val value: String = try {
-                    val value: Any? = method.invoke(module, *params.toTypedArray())
-                    if (null == value) "" else parcel.string(value)
+                    method.invoke(module, *params.toTypedArray())
+                    ""
                 } catch (e: Exception) {
                     val exp = (e as? InvocationTargetException)?.targetException ?: e
                     Log.e(TAG, "invoke runnable exception(${exp.message})")
                     exp.printStackTrace()
-                    "$ERR_PREFIX${exp.message}"
+                    "${exp.message}"
                 }
-                if (jsCallbackUsed && !value.startsWith(ERR_PREFIX)) return@runnable
-                js(callbackPath, value)
+                if (jsCallbackUsed && value.isEmpty()) return@runnable
+                if (value.isEmpty()) {
+                    jsCallback.success("")
+                } else {
+                    jsCallback.failure(msg = value)
+                }
             }
             if (isAsync) THREADS.execute(runnable) else web.post(runnable)
         } catch (e: Exception) {
-            js(callbackPath, payload = "$ERR_PREFIX${e.message}")
+            jsCallback.failure(msg = "${e.message}")
             Log.e(TAG, "invoke exception(${e.message})")
             e.printStackTrace()
         }
